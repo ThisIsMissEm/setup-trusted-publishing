@@ -1,18 +1,10 @@
 {
+  "extends": "@adonisjs/tsconfig/tsconfig.package.json",
   "compilerOptions": {
-    "target": "ES2024",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "dist",
-    "strict": true,
-    "declaration": true,
+    "rootDir": "./",
+    "outDir": "./dist",
     "declarationMap": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true,
-    "noEmit": false,
-    "types": ["node"]
+    "sourceMap": true
   },
   "include": ["bin/**/*", "src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
