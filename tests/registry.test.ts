@@ -177,7 +177,9 @@ describe('runPublish', () => {
   test('looksLikeAuthError is true when stderr contains E404 then PUT', async () => {
     await using pm = await createMockPM('npm')
     await pm.setExitCode(1)
-    await pm.setStderr('npm error code E404\nnpm error 404 Not Found - PUT https://registry.npmjs.org/my-pkg\n')
+    await pm.setStderr(
+      'npm error code E404\nnpm error 404 Not Found - PUT https://registry.npmjs.org/my-pkg\n'
+    )
     const tarball = join(tmpdir(), 'test-0.0.0.tgz')
     await writeFile(tarball, 'fake tarball content')
 

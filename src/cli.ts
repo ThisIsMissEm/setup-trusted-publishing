@@ -253,7 +253,9 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
   const result = await runPublish({ pm, tarballPath, cwd, registry, env })
   if (result.exitCode !== 0) {
     if (result.looksLikeAuthError) {
-      err('hint: 404 on publish usually means missing auth — set NPM_TOKEN or run `npm login` / `pnpm login`')
+      err(
+        'hint: 404 on publish usually means missing auth — set NPM_TOKEN or run `npm login` / `pnpm login`'
+      )
     }
     return result.exitCode
   }
