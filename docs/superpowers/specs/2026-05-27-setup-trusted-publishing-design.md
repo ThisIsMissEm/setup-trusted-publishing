@@ -173,6 +173,24 @@ This means `pnpm dlx setup-trusted-publishing` with no `packageManager` field wi
 
 ---
 
+## Scoped Package — Require Explicit `--access`
+
+Before running the access-resolution logic, if the package name starts with `@` **and** none of these are set — `publishConfig.access`, `private: true`, or the `--access` flag — the CLI exits 2:
+
+```
+Scoped package @org/foo defaults to restricted (private) access on npm.
+Pass --access public or --access restricted to set the access level explicitly.
+```
+
+**Why:** npm silently defaults scoped packages to `restricted` (private) access if `publishConfig.access` is absent and the package was never published with `--access public`. Rather than surprise the user with a published-but-invisible package, require an explicit choice.
+
+**Bypass paths:**
+- Set `"publishConfig": { "access": "public" }` in `package.json` → guard skipped (existing setting satisfies it)
+- Set `"private": true` → guard skipped (inferred `restricted` is correct)
+- Pass `--access public` or `--access restricted` → satisfies the guard
+
+---
+
 ## Access Resolution
 
 ### Decision matrix

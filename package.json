@@ -1,0 +1,33 @@
+{
+  "name": "setup-trusted-publishing",
+  "version": "0.1.0",
+  "description": "Publish a 0.0.0 stub to npm so OIDC trusted publishing can be configured",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "setup-trusted-publishing": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist/bin",
+    "dist/src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
+    "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test"
+  },
+  "dependencies": {
+    "libnpmpack": "*",
+    "npm-registry-fetch": "*",
+    "validate-npm-package-name": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/validate-npm-package-name": "^4.0.2",
+    "typescript": "^5"
+  }
+}
