@@ -9,10 +9,12 @@
   "bin": {
     "setup-trusted-publishing": "./dist/bin/cli.js"
   },
+  "license": "MIT",
   "files": [
     "dist/bin",
     "dist/src",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "prettier": "@adonisjs/prettier-config",
   "scripts": {
