@@ -4,7 +4,7 @@ Publish a minimal `0.0.0` stub to npm so you can configure OIDC trusted publishi
 
 npm's trusted publishing (provenance) requires a package to already exist on the registry before you can set it up. This tool handles that one-time initial publish — run it once, then configure trusted publishing on npmjs.com and let CI take over all real publishes.
 
-If the package already exists, the tool exits `0` and does nothing. It's safe to run in CI on every release.
+If the package already exists, the tool exits `0` and does nothing.
 
 ## Quick Start
 
@@ -16,7 +16,9 @@ npx setup-trusted-publishing
 pnpm dlx setup-trusted-publishing
 ```
 
-Run from your package directory (or pass `--cwd`). On success it prints the package URL so you can click through to configure trusted publishing.
+Run from your package directory (or pass `--cwd <dir>`).
+
+On success it prints the package URL so you can click through to configure trusted publishing.
 
 ## What It Does
 
@@ -27,15 +29,15 @@ Run from your package directory (or pass `--cwd`). On success it prints the pack
 
 ## Options
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--dry-run` | `-n` | Print the stub manifest without publishing or writing anything |
-| `--no-publish` | | Write `publishConfig.access`, pack the stub tarball, copy it to `--cwd` — but don't publish. For package managers not directly supported (e.g. yarn). |
-| `--access <mode>` | | Set access to `public` or `restricted`. Required for scoped packages with no existing `publishConfig.access`. |
-| `--force` | `-f` | Bypass access conflict errors (e.g. `--access public` conflicting with an existing `restricted` setting) |
-| `--registry <url>` | | Registry to check and publish to (defaults to your `.npmrc` / npm default) |
-| `--cwd <path>` | `-C` | Source package directory (defaults to current directory) |
-| `--help` | `-h` | Show help |
+| Flag               | Short | Description                                                                                                                                           |
+| ------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dry-run`        | `-n`  | Print the stub manifest without publishing or writing anything                                                                                        |
+| `--no-publish`     |       | Write `publishConfig.access`, pack the stub tarball, copy it to `--cwd` — but don't publish. For package managers not directly supported (e.g. yarn). |
+| `--access <mode>`  |       | Set access to `public` or `restricted`. Required for scoped packages with no existing `publishConfig.access`.                                         |
+| `--force`          | `-f`  | Bypass access conflict errors (e.g. `--access public` conflicting with an existing `restricted` setting)                                              |
+| `--registry <url>` |       | Registry to check and publish to (defaults to your `.npmrc` / npm default)                                                                            |
+| `--cwd <path>`     | `-C`  | Source package directory (defaults to current directory)                                                                                              |
+| `--help`           | `-h`  | Show help                                                                                                                                             |
 
 ## Scoped Packages
 
@@ -53,11 +55,16 @@ pnpm dlx setup-trusted-publishing --access restricted
 
 Detected automatically from `package.json#packageManager` or `npm_config_user_agent`:
 
-| Package manager | Support |
-|----------------|---------|
-| npm | Full |
-| pnpm | Full |
-| yarn | Use `--no-publish` to pack the tarball, then publish manually |
+| Package manager | Support                                                       |
+| --------------- | ------------------------------------------------------------- |
+| npm             | Full                                                          |
+| pnpm            | Full                                                          |
+| yarn            | Use `--no-publish` to pack the tarball, then publish manually |
+
+## Further Reading
+
+- [Trusted Publishers — npm docs](https://docs.npmjs.com/trusted-publishers)
+- [Staged publishing and new install-time controls for npm](https://github.blog/changelog/2026-05-22-staged-publishing-and-new-install-time-controls-for-npm/)
 
 ## Requirements
 
