@@ -1,22 +1,13 @@
-import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
-
-// CJS interop for CommonJS modules that don't support ESM imports natively
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const libnpmpack = require('libnpmpack') as (spec: string, opts?: Record<string, unknown>) => Promise<Buffer>;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const regFetch = require('npm-registry-fetch') as (
-  uri: string,
-  opts?: Record<string, unknown>
-) => Promise<{ body: { resume(): void } }>;
-
+import { spawn } from "node:child_process";
+import { registryFetch, packPackage } from "./npm.ts";
 // ── Package manager detection ─────────────────────────────────────────────
 
-export type SupportedPM = 'npm' | 'pnpm';
-
+export type SupportedPM = "npm" | "pnpm";
 export type PMDetectionResult =
-  | { pm: SupportedPM; source: 'packageManager-field' | 'user-agent' | 'fallback' }
+  | {
+      pm: SupportedPM;
+      source: "packageManager-field" | "user-agent" | "fallback";
+    }
   | { pm: null; unsupported: string };
 
 /**
@@ -27,25 +18,26 @@ export type PMDetectionResult =
  */
 export function detectPackageManager(
   packageManagerField: string | undefined,
-  userAgent: string | undefined
+  userAgent: string | undefined,
 ): PMDetectionResult {
   // 1. packageManager field
   if (packageManagerField) {
-    const name = packageManagerField.split('@')[0] ?? '';
-    if (name === 'npm') return { pm: 'npm', source: 'packageManager-field' };
-    if (name === 'pnpm') return { pm: 'pnpm', source: 'packageManager-field' };
+    const name = packageManagerField.split("@")[0] ?? "";
+    if (name === "npm") return { pm: "npm", source: "packageManager-field" };
+    if (name === "pnpm") return { pm: "pnpm", source: "packageManager-field" };
     return { pm: null, unsupported: name };
   }
 
   // 2. npm_config_user_agent
   if (userAgent) {
-    if (userAgent.startsWith('pnpm/')) return { pm: 'pnpm', source: 'user-agent' };
-    if (userAgent.startsWith('yarn/')) return { pm: null, unsupported: 'yarn' };
-    return { pm: 'npm', source: 'user-agent' };
+    if (userAgent.startsWith("pnpm/"))
+      return { pm: "pnpm", source: "user-agent" };
+    if (userAgent.startsWith("yarn/")) return { pm: null, unsupported: "yarn" };
+    return { pm: "npm", source: "user-agent" };
   }
 
   // 3. Fallback
-  return { pm: 'npm', source: 'fallback' };
+  return { pm: "npm", source: "fallback" };
 }
 
 // ── Registry existence check ──────────────────────────────────────────────
@@ -61,24 +53,28 @@ export function detectPackageManager(
  */
 export async function packageExists(
   name: string,
-  opts: { registry?: string } = {}
+  opts: { registry?: string } = {},
 ): Promise<boolean> {
   // Encode scoped names: @org/pkg → @org%2Fpkg (keep @, encode /)
-  const escapedName = name.startsWith('@')
-    ? '@' + name.slice(1).replace('/', '%2F')
+  const escapedName = name.startsWith("@")
+    ? "@" + name.slice(1).replace("/", "%2F")
     : name;
 
-  // Always bypass the proxy for loopback addresses — correct in production too, and
-  // necessary in tests where the mock registry runs on localhost but http_proxy / https_proxy
-  // may be set in the environment (e.g. by Socket Firewall wrapping the parent process).
-  // Merge with any existing NOPROXY / no_proxy env vars so user exclusions are preserved.
-  const noProxy = ['localhost', '127.0.0.1', '::1',
-    process.env['NOPROXY'] ?? process.env['no_proxy'] ?? process.env['NO_PROXY'] ?? '',
-  ].filter(Boolean).join(',');
+  // Always bypass the proxy for loopback addresses, and necessary in tests
+  // where the mock registry runs on localhost but http_proxy / https_proxy may
+  // be set in the environment (e.g. by Socket Firewall wrapping the parent
+  // process). Merge with any existing no_proxy / NO_PROXY env vars so user
+  // exclusions are preserved.
+  const envProxy = process.env["no_proxy"] ?? process.env["NO_PROXY"] ?? "";
+  const noProxy = ["localhost", "127.0.0.1", "::1", envProxy]
+    .filter(Boolean)
+    .join(",");
 
-  const attempt = async (fetchOpts: Record<string, unknown>): Promise<boolean | null> => {
+  const attempt = async (
+    fetchOpts: Record<string, unknown>,
+  ): Promise<boolean | null> => {
     try {
-      const res = await regFetch(escapedName, fetchOpts);
+      const res = await registryFetch(escapedName, fetchOpts);
       res.body.resume(); // drain so the socket is released
       return true; // 200
     } catch (e: unknown) {
@@ -99,7 +95,8 @@ export async function packageExists(
 
   // 401: retry letting npm-registry-fetch resolve auth from .npmrc
   const second = await attempt({ registry: opts.registry, noProxy });
-  if (second === null) throw new Error(`Registry auth required for "${name}" — not logged in`);
+  if (second === null)
+    throw new Error(`Registry auth required for "${name}" — not logged in`);
   return second;
 }
 
@@ -107,7 +104,7 @@ export async function packageExists(
 
 /** Pack the stub directory into a tarball Buffer using libnpmpack. */
 export async function packStub(dir: string): Promise<Buffer> {
-  return await libnpmpack(`file:${dir}`, { ignoreScripts: true });
+  return await packPackage(`file:${dir}`, { ignoreScripts: true });
 }
 
 // ── Publish spawn ─────────────────────────────────────────────────────────
@@ -128,17 +125,21 @@ export interface RunPublishOptions {
 export async function runPublish(opts: RunPublishOptions): Promise<number> {
   const { pm, tarballPath, cwd, registry, env } = opts;
 
-  const args = ['publish', tarballPath];
-  if (pm === 'pnpm') args.push('--no-git-checks');
+  const args = ["publish", tarballPath];
+  // pnpm always runs git checks, even though we're publishing a pre-built
+  // tarball:
+  if (pm === "pnpm") args.push("--no-git-checks");
+
+  // Set the registry if one was supplied:
   if (registry) args.push(`--registry=${registry}`);
 
   return new Promise((resolve, reject) => {
     const child = spawn(pm, args, {
       cwd,
-      stdio: 'inherit',
+      stdio: "inherit",
       env: env ?? process.env,
     });
-    child.on('exit', code => resolve(code ?? 1));
-    child.on('error', reject);
+    child.on("exit", (code) => resolve(code ?? 1));
+    child.on("error", reject);
   });
 }
