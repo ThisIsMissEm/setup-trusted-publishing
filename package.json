@@ -25,7 +25,7 @@
     "format:check": "prettier --check .",
     "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
     "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test",
-    "version-packages": "changeset version && git add package.json CHANGELOG.md",
+    "version-packages": "changeset version && pnpm run format:write CHANGELOG.md && git add package.json CHANGELOG.md",
     "release": "pnpm run build && npm stage publish",
     "changeset": "changeset"
   },
