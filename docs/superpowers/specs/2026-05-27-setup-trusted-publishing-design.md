@@ -16,6 +16,7 @@ This tool handles that initial publish with a minimal stub. Run once per package
 ## Scope
 
 **In scope:**
+
 - One CLI binary — `pnpm dlx setup-trusted-publishing` (or `npx`, globally installed)
 - Read the current `package.json`, build a `0.0.0` stub with only basic metadata, publish it
 - If the package already exists on the registry → exit 0, do nothing, touch no files
@@ -65,11 +66,11 @@ tests/
 
 ### Runtime
 
-| Package | Purpose |
-|---------|---------|
-| `npm-registry-fetch` | Registry existence check. Handles scope-slash encoding, proxies, CA config, registry URL resolution. Throws with `err.statusCode === 404` for not-found. |
-| `libnpmpack` | In-memory tarball creation — same code `npm pack` runs. Returns a Buffer. |
-| `validate-npm-package-name` | Fast upfront name validation before any I/O. |
+| Package                     | Purpose                                                                                                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm-registry-fetch`        | Registry existence check. Handles scope-slash encoding, proxies, CA config, registry URL resolution. Throws with `err.statusCode === 404` for not-found. |
+| `libnpmpack`                | In-memory tarball creation — same code `npm pack` runs. Returns a Buffer.                                                                                |
+| `validate-npm-package-name` | Fast upfront name validation before any I/O.                                                                                                             |
 
 ### Not used
 
@@ -140,15 +141,16 @@ Resolution order — first match wins:
 
 ### `packageManager` field
 
-| Value | Command |
-|-------|---------|
-| Starts with `npm@` | `npm publish <tarball>` |
-| Starts with `pnpm@` | `pnpm publish <tarball> --no-git-checks` |
+| Value                               | Command                                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Starts with `npm@`                  | `npm publish <tarball>`                                                                                              |
+| Starts with `pnpm@`                 | `pnpm publish <tarball> --no-git-checks`                                                                             |
 | Starts with `yarn@` or unrecognised | Exit 1: `"Unsupported package manager: yarn. Use --no-publish to prepare the stub tarball and publish it manually."` |
 
 ### Invocation context (when `packageManager` is absent)
 
 `npm_config_user_agent` is set by npm, pnpm, and yarn whenever they spawn a child process or dlx runner. Example values:
+
 - npm: `npm/10.x.x node/v24.x.x ...`
 - pnpm: `pnpm/9.x.x npm/... node/v24.x.x ...`
 
@@ -185,6 +187,7 @@ Pass --access public or --access restricted to set the access level explicitly.
 **Why:** npm silently defaults scoped packages to `restricted` (private) access if `publishConfig.access` is absent and the package was never published with `--access public`. Rather than surprise the user with a published-but-invisible package, require an explicit choice.
 
 **Bypass paths:**
+
 - Set `"publishConfig": { "access": "public" }` in `package.json` → guard skipped (existing setting satisfies it)
 - Set `"private": true` → guard skipped (inferred `restricted` is correct)
 - Pass `--access public` or `--access restricted` → satisfies the guard
@@ -195,17 +198,17 @@ Pass --access public or --access restricted to set the access level explicitly.
 
 ### Decision matrix
 
-| # | `source.private` | `source.publishConfig?.access` | `--access` flag | `--force` | Outcome |
-|---|-----------------|-------------------------------|-----------------|-----------|---------|
-| 1 | any | set | set, ≠ existing | false | **ERROR** `flag-vs-existing` → exit 2 |
-| 2 | any | set | set, ≠ existing | true | Write flag value; record overwritten |
-| 3 | true | unset | `public` | false | **ERROR** `flag-vs-private` → exit 2 |
-| 4 | true | unset | `public` | true | Write `public` |
-| 5 | any | unset | set (no conflict) | any | Write flag value |
-| 6 | any | set | set, = existing | any | No change (matches) |
-| 7 | any | set | unset | any | No change (keep existing) |
-| 8 | true | unset | unset | any | Write `restricted` (inferred from `private`) |
-| 9 | not true | unset | unset | any | Write `public` (default) |
+| #   | `source.private` | `source.publishConfig?.access` | `--access` flag   | `--force` | Outcome                                      |
+| --- | ---------------- | ------------------------------ | ----------------- | --------- | -------------------------------------------- |
+| 1   | any              | set                            | set, ≠ existing   | false     | **ERROR** `flag-vs-existing` → exit 2        |
+| 2   | any              | set                            | set, ≠ existing   | true      | Write flag value; record overwritten         |
+| 3   | true             | unset                          | `public`          | false     | **ERROR** `flag-vs-private` → exit 2         |
+| 4   | true             | unset                          | `public`          | true      | Write `public`                               |
+| 5   | any              | unset                          | set (no conflict) | any       | Write flag value                             |
+| 6   | any              | set                            | set, = existing   | any       | No change (matches)                          |
+| 7   | any              | set                            | unset             | any       | No change (keep existing)                    |
+| 8   | true             | unset                          | unset             | any       | Write `restricted` (inferred from `private`) |
+| 9   | not true         | unset                          | unset             | any       | Write `public` (default)                     |
 
 ### Return type
 
@@ -216,6 +219,7 @@ Pure function returning `{ value, reason, changed, overwrote? }` or throwing `Ac
 ### Error messages
 
 **`flag-vs-private`:**
+
 ```
 --access public conflicts with "private": true in package.json.
 If this package is genuinely intended for public release, remove "private": true from package.json.
@@ -223,6 +227,7 @@ To bypass this check, pass --force.
 ```
 
 **`flag-vs-existing`:**
+
 ```
 --access <flag> conflicts with existing publishConfig.access "<existing>" in package.json.
 To overwrite the existing value, pass --force.
@@ -233,11 +238,13 @@ To overwrite the existing value, pass --force.
 ## Stub Manifest — Field Allow-List
 
 Always set:
+
 - `name` — copied from source (error if missing)
 - `version` — forced to `"0.0.0"`
 - `main` — forced to `"index.js"`
 
 Copied if present and non-empty:
+
 - `description` (placeholder string if absent)
 - `author`, `contributors`, `license`, `homepage`, `repository`, `bugs`, `keywords`, `publishConfig`
 
@@ -258,6 +265,7 @@ When the resolved access value differs from what's in the source:
 - If `publishConfig` already exists: merge via `{ ...existing, access }` to preserve other keys
 
 **Do not write:**
+
 - During `--dry-run`
 - When the package already exists on the registry (bail before this step)
 - When the resolved value matches what's already in the source
@@ -267,11 +275,13 @@ When the resolved access value differs from what's in the source:
 ## Success Output
 
 Public registry (`registry.npmjs.org`):
+
 ```
 Published <name>@0.0.0 → https://www.npmjs.com/package/<name>
 ```
 
 Non-public registry:
+
 ```
 Published <name>@0.0.0 to <registry-url>
 ```
@@ -282,11 +292,11 @@ Published <name>@0.0.0 to <registry-url>
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Published, package already on registry, or dry-run completed |
-| 1 | Internal error: invalid `package.json`, registry lookup failure, stub verification failure, `npm`/`pnpm` publish exited non-zero, unsupported package manager |
-| 2 | Bad CLI args or access conflict (use `--force` to bypass) |
+| Code | Meaning                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Published, package already on registry, or dry-run completed                                                                                                  |
+| 1    | Internal error: invalid `package.json`, registry lookup failure, stub verification failure, `npm`/`pnpm` publish exited non-zero, unsupported package manager |
+| 2    | Bad CLI args or access conflict (use `--force` to bypass)                                                                                                     |
 
 ---
 
@@ -295,6 +305,7 @@ Published <name>@0.0.0 to <registry-url>
 **Framework:** Node built-in (`node --test`). No network, no real publish.
 
 **Mock surfaces:**
+
 - `helpers/mock-registry.ts` — `http.createServer` returning 200 with a fake packument or 404
 - `helpers/mock-npm.ts` — fake `npm`/`pnpm` script on a temp `PATH`; records args, exits 0 or non-zero on demand; verifies tarball path exists. **Not shipped in the package.**
 
