@@ -85,6 +85,9 @@ tests/
 setup-trusted-publishing [options]
 
   -n, --dry-run        Build the stub but do not publish or write the source
+      --no-publish     Write source package.json, pack the stub, and place the
+                       tarball in --cwd — but do not publish. For use with
+                       unsupported package managers (e.g. yarn).
       --access <mode>  'public' or 'restricted'
   -f, --force          Bypass access conflict errors
       --registry <url> Registry to check and publish to
@@ -95,6 +98,7 @@ setup-trusted-publishing [options]
 
 - `util.parseArgs` with `strict: true`, `allowPositionals: false`. Unknown args → exit 2.
 - `--force` + `--dry-run` together → exit 2 (they conflict).
+- `--no-publish` + `--dry-run` together → exit 2 (they conflict).
 
 ---
 
@@ -103,7 +107,7 @@ setup-trusted-publishing [options]
 1. Parse and validate args. Invalid args → exit 2.
 2. Read `package.json` from `--cwd`. Cache raw text, parsed object, detected indent, trailing-newline presence.
 3. Validate package name with `validate-npm-package-name` → exit 1 on invalid.
-4. **Detect publish command** from `packageManager` field / `npm_config_user_agent` (see below). Exit 1 if unsupported — fail fast before any I/O.
+4. **Detect publish command** from `packageManager` field / `npm_config_user_agent` (see below). If unsupported and `--no-publish` is not set → exit 1 with a message suggesting `--no-publish`. If `--no-publish` is set, detection is advisory only (used for the success hint).
 5. **Registry existence check** via `npm-registry-fetch`. If the package exists → print `"<name> is already published — nothing to do."` and exit 0. **No file mutations.**
 6. **Resolve access mode** (see decision matrix). May throw `AccessConflictError` → exit 2.
 7. If resolved access differs from source: write back `publishConfig.access` (unless `--dry-run`). Preserve indent and EOL.
@@ -113,9 +117,16 @@ setup-trusted-publishing [options]
 11. Write three files into it: `package.json` (stub manifest), `index.js` (`module.exports = {};`), `README.md` (placeholder).
 12. `readdir` the temp dir — verify it contains exactly those three files. If wrong → print diff, exit 1. **Do not publish.**
 13. `libnpmpack(dir)` → Buffer. Write tarball to temp dir as `${name-with-dashes}-0.0.0.tgz`.
-14. Spawn publish with `stdio: 'inherit'`. Forward `--registry` if it was explicitly passed on the CLI.
-15. On success, print package URL (npmjs.com for public registry; registry URL otherwise).
-16. Temp dir auto-cleans on scope exit (`await using`).
+14. **If `--no-publish`:** copy tarball to `--cwd` (same filename). Print:
+    ```
+    Stub packed to ./<tarball-name>
+    Run your publish command to complete the initial publish, e.g.:
+      yarn npm publish ./<tarball-name>
+    ```
+    Exit 0.
+15. Spawn publish with `stdio: 'inherit'`. Forward `--registry` if it was explicitly passed on the CLI.
+16. On success, print package URL (npmjs.com for public registry; registry URL otherwise).
+17. Temp dir auto-cleans on scope exit (`await using`).
 
 ---
 
@@ -133,7 +144,7 @@ Resolution order — first match wins:
 |-------|---------|
 | Starts with `npm@` | `npm publish <tarball>` |
 | Starts with `pnpm@` | `pnpm publish <tarball> --no-git-checks` |
-| Starts with `yarn@` or unrecognised | Exit 1: `"Unsupported package manager: yarn. Run 'npm publish <tarball>' manually."` |
+| Starts with `yarn@` or unrecognised | Exit 1: `"Unsupported package manager: yarn. Use --no-publish to prepare the stub tarball and publish it manually."` |
 
 ### Invocation context (when `packageManager` is absent)
 
@@ -141,7 +152,7 @@ Resolution order — first match wins:
 - npm: `npm/10.x.x node/v24.x.x ...`
 - pnpm: `pnpm/9.x.x npm/... node/v24.x.x ...`
 
-Detection: check if the user agent string starts with `pnpm/` → use pnpm. Starts with `npm/` or absent → use npm. Starts with `yarn/` → exit 1 (unsupported).
+Detection: check if the user agent string starts with `pnpm/` → use pnpm. Starts with `npm/` or absent → use npm. Starts with `yarn/` → unsupported (exit 1 unless `--no-publish` is set).
 
 This means `pnpm dlx setup-trusted-publishing` with no `packageManager` field will automatically use `pnpm publish`, and `npx setup-trusted-publishing` will use `npm publish`.
 
@@ -302,7 +313,11 @@ Published <name>@0.0.0 to <registry-url>
 - [ ] No `packageManager`, `npm_config_user_agent` starts with `pnpm/` → spawns `pnpm publish --no-git-checks`
 - [ ] No `packageManager`, `npm_config_user_agent` starts with `npm/` → spawns `npm publish`
 - [ ] No `packageManager`, no `npm_config_user_agent` → spawns `npm publish` (fallback)
-- [ ] No `packageManager`, `npm_config_user_agent` starts with `yarn/` → exit 1 with unsupported message
+- [ ] No `packageManager`, `npm_config_user_agent` starts with `yarn/` → exit 1 with unsupported message (suggests --no-publish)
+- [ ] `--no-publish` → writes source `package.json`, packs tarball, copies it to `--cwd`, does not spawn publish, exits 0
+- [ ] `--no-publish` with unsupported PM (yarn) → succeeds (exit 1 bypass; tarball placed in cwd)
+- [ ] `--no-publish` + `--dry-run` together → exit 2
+- [ ] `--no-publish` tarball filename matches `${name-with-dashes}-0.0.0.tgz` convention for scoped packages
 
 ---
 
