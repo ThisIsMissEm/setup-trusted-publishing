@@ -1,0 +1,53 @@
+{
+  "name": "setup-trusted-publishing",
+  "version": "0.1.0",
+  "description": "Publish a 0.0.0 stub to npm so OIDC trusted publishing can be configured",
+  "type": "module",
+  "packageManager": "pnpm@11.4.0+sha512.f0febc7e37552ab485494a914241b338e0b3580b93d54ce31f00933015880863129038a1b4ae4e414a0ee63ac35bf21197e990172c4a68256450b5636310968f",
+  "engines": {
+    "node": ">=24.4.0"
+  },
+  "bin": {
+    "setup-trusted-publishing": "./dist/bin/cli.js"
+  },
+  "license": "MIT",
+  "files": [
+    "dist/bin",
+    "dist/src",
+    "README.md",
+    "LICENSE"
+  ],
+  "prettier": "@adonisjs/prettier-config",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "lint": "pnpm run typecheck && eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
+    "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test",
+    "version-packages": "changeset version && pnpm run format:write CHANGELOG.md && git add package.json CHANGELOG.md",
+    "release": "pnpm run build && npm stage publish",
+    "changeset": "changeset"
+  },
+  "dependencies": {
+    "libnpmpack": "^9.1.8",
+    "npm-registry-fetch": "^19.1.1",
+    "validate-npm-package-name": "^8.0.0"
+  },
+  "devDependencies": {
+    "@adonisjs/eslint-config": "^3.0.0",
+    "@adonisjs/prettier-config": "^1.4.5",
+    "@adonisjs/tsconfig": "^2.0.0",
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
+    "@types/node": "^25.9.1",
+    "@types/validate-npm-package-name": "^4.0.2",
+    "eslint": "^10.4.0",
+    "prettier": "^3.8.3",
+    "typescript": "^5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
