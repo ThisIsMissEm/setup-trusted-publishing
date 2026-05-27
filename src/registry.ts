@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
-import { request as httpRequest } from 'node:http';
-import { request as httpsRequest } from 'node:https';
 import { createRequire } from 'node:module';
 
 // CJS interop for CommonJS modules that don't support ESM imports natively
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const libnpmpack = require('libnpmpack') as (spec: string, opts?: Record<string, unknown>) => Promise<Buffer>;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const regFetch = require('npm-registry-fetch') as (
+  uri: string,
+  opts?: Record<string, unknown>
+) => Promise<{ body: { resume(): void } }>;
 
 // ── Package manager detection ─────────────────────────────────────────────
 
@@ -48,41 +51,56 @@ export function detectPackageManager(
 // ── Registry existence check ──────────────────────────────────────────────
 
 /**
- * Uses node:http / node:https directly to check whether a package exists on
- * the registry. Avoids make-fetch-happen (used by npm-registry-fetch) which
- * can be intercepted by network-level tools (e.g. Socket Firewall) in ways
- * that break localhost test servers.
+ * Checks whether a package exists on the registry using npm-registry-fetch.
+ * Handles .npmrc auth, proxy config, and CA certificates automatically.
+ *
+ * - 200 → exists (return true)
+ * - 404 → does not exist (return false)
+ * - 401 → retry once without forceAuth so .npmrc credentials are used
+ *          (private registries may require auth even for existence checks)
  */
 export async function packageExists(
   name: string,
   opts: { registry?: string } = {}
 ): Promise<boolean> {
-  const registryBase = (opts.registry ?? 'https://registry.npmjs.org').replace(/\/$/, '');
   // Encode scoped names: @org/pkg → @org%2Fpkg (keep @, encode /)
   const escapedName = name.startsWith('@')
     ? '@' + name.slice(1).replace('/', '%2F')
     : name;
 
-  const url = `${registryBase}/${escapedName}`;
-  const parsedUrl = new URL(url);
-  const req = parsedUrl.protocol === 'https:' ? httpsRequest : httpRequest;
+  // Always bypass the proxy for loopback addresses — correct in production too, and
+  // necessary in tests where the mock registry runs on localhost but http_proxy / https_proxy
+  // may be set in the environment (e.g. by Socket Firewall wrapping the parent process).
+  // Merge with any existing NOPROXY / no_proxy env vars so user exclusions are preserved.
+  const noProxy = ['localhost', '127.0.0.1', '::1',
+    process.env['NOPROXY'] ?? process.env['no_proxy'] ?? process.env['NO_PROXY'] ?? '',
+  ].filter(Boolean).join(',');
 
-  const statusCode = await new Promise<number>((resolve, reject) => {
-    const r = req(url, { method: 'GET', headers: { accept: 'application/json' } }, (res) => {
-      res.resume(); // drain so the socket is released
-      resolve(res.statusCode ?? 0);
-    });
-    r.on('error', reject);
-    r.end();
+  const attempt = async (fetchOpts: Record<string, unknown>): Promise<boolean | null> => {
+    try {
+      const res = await regFetch(escapedName, fetchOpts);
+      res.body.resume(); // drain so the socket is released
+      return true; // 200
+    } catch (e: unknown) {
+      const err = e as { statusCode?: number };
+      if (err.statusCode === 404) return false;
+      if (err.statusCode === 401) return null; // signal: retry with auth
+      throw e;
+    }
+  };
+
+  // First attempt: forceAuth off so credentials are not sent to arbitrary registries
+  const first = await attempt({
+    registry: opts.registry,
+    forceAuth: { alwaysAuth: false },
+    noProxy,
   });
+  if (first !== null) return first;
 
-  if (statusCode === 200) return true;
-  if (statusCode === 404) return false;
-
-  // 401 on a public registry means the package exists but auth is required to see it
-  if (statusCode === 401) return true;
-
-  throw new Error(`Registry check for "${name}" returned unexpected status ${statusCode}`);
+  // 401: retry letting npm-registry-fetch resolve auth from .npmrc
+  const second = await attempt({ registry: opts.registry, noProxy });
+  if (second === null) throw new Error(`Registry auth required for "${name}" — not logged in`);
+  return second;
 }
 
 // ── Tarball packing ───────────────────────────────────────────────────────
