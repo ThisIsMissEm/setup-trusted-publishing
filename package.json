@@ -18,7 +18,10 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
-    "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test"
+    "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test",
+    "version-packages": "changeset version && git add package.json CHANGELOG.md",
+    "release": "pnpm run build && npm stage publish",
+    "changeset": "changeset"
   },
   "dependencies": {
     "libnpmpack": "*",
@@ -26,6 +29,8 @@
     "validate-npm-package-name": "*"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
     "@types/node": "^24",
     "@types/validate-npm-package-name": "^4.0.2",
     "typescript": "^5"
