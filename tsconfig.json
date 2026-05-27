@@ -11,8 +11,7 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "noEmit": false,
-    "types": ["@types/node"]
+    "noEmit": false
   },
   "include": ["bin/**/*", "src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile, readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createMockRegistry } from './helpers/mock-registry.ts'
-import { createMockPM } from './helpers/mock-pm.ts'
+import { createMockRegistry } from './helpers/mock_registry.ts'
+import { createMockPM } from './helpers/mock_pm.ts'
 import main, { formatSuccessUrl } from '../src/cli.ts'
 
 // Helper: run the CLI with full isolation
@@ -131,7 +131,8 @@ test('-n is alias for --dry-run', async () => {
   const ctx = await runCLI({ argv: ['-n'] })
   try {
     assert.strictEqual(ctx.code, 0)
-    assert.strictEqual((await ctx.pm.getCalls()).length, 0)
+    const calls = await ctx.pm.getCalls()
+    assert.strictEqual(calls.length, 0)
   } finally {
     await cleanup(ctx)
   }
@@ -298,7 +299,8 @@ test('--no-publish → writes source, packs tarball to cwd, does not publish', a
     const files = await readdir(ctx.cwd)
     assert.ok(files.some((f) => f.endsWith('.tgz')))
     // publish never called
-    assert.strictEqual((await ctx.pm.getCalls()).length, 0)
+    const noCalls = await ctx.pm.getCalls()
+    assert.strictEqual(noCalls.length, 0)
   } finally {
     await cleanup(ctx)
   }

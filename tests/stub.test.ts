@@ -93,8 +93,8 @@ describe('writeStubDir + verifyStubDir', () => {
   test('writes exactly package.json, index.js, README.md', async () => {
     const manifest = buildStubManifest({ name: 'my-pkg', description: 'Test' }, 'public')
     await writeStubDir(dir, manifest)
-    const files = (await readdir(dir)).sort()
-    assert.deepStrictEqual(files, ['README.md', 'index.js', 'package.json'])
+    const files = await readdir(dir)
+    assert.deepStrictEqual(files.sort(), ['README.md', 'index.js', 'package.json'])
   })
 
   test('index.js contains module.exports = {}', async () => {

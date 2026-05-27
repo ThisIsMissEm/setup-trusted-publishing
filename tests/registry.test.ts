@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { createMockRegistry } from './helpers/mock-registry.ts'
-import { createMockPM } from './helpers/mock-pm.ts'
+import { createMockRegistry } from './helpers/mock_registry.ts'
+import { createMockPM } from './helpers/mock_pm.ts'
 import { detectPackageManager, packageExists, packStub, runPublish } from '../src/registry.ts'
 
 // ── detectPackageManager ──────────────────────────────────────────────────

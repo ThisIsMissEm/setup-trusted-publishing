@@ -60,7 +60,8 @@ export async function writeStubDir(dir: string, manifest: StubManifest): Promise
 }
 
 export async function verifyStubDir(dir: string): Promise<void> {
-  const actual = (await readdir(dir)).sort()
+  const files = await readdir(dir)
+  const actual = files.sort()
   const expected = [...EXPECTED_FILES].sort()
 
   if (actual.join(',') !== expected.join(',')) {
