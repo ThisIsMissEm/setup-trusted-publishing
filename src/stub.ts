@@ -1,21 +1,26 @@
-import { writeFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { PackageJson } from './packument.ts';
+import { writeFile, readdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { PackageJson } from './packument.ts'
 
 const OPTIONAL_FIELDS = [
-  'author', 'contributors', 'license', 'homepage',
-  'repository', 'bugs', 'keywords',
-] as const;
+  'author',
+  'contributors',
+  'license',
+  'homepage',
+  'repository',
+  'bugs',
+  'keywords',
+] as const
 
-const EXPECTED_FILES = ['README.md', 'index.js', 'package.json'];
+const EXPECTED_FILES = ['README.md', 'index.js', 'package.json']
 
 export interface StubManifest {
-  name: string;
-  version: '0.0.0';
-  main: 'index.js';
-  description: string;
-  publishConfig: { access: 'public' | 'restricted'; [key: string]: unknown };
-  [key: string]: unknown;
+  name: string
+  version: '0.0.0'
+  main: 'index.js'
+  description: string
+  publishConfig: { access: 'public' | 'restricted'; [key: string]: unknown }
+  [key: string]: unknown
 }
 
 export function buildStubManifest(
@@ -23,7 +28,7 @@ export function buildStubManifest(
   resolvedAccess: 'public' | 'restricted'
 ): StubManifest {
   if (!source.name) {
-    throw new Error('package.json is missing the required "name" field');
+    throw new Error('package.json is missing the required "name" field')
   }
 
   const manifest: StubManifest = {
@@ -32,42 +37,38 @@ export function buildStubManifest(
     main: 'index.js',
     description: source.description ?? 'Stub package for npm trusted publishing setup',
     publishConfig: { ...source.publishConfig, access: resolvedAccess },
-  };
-
-  for (const field of OPTIONAL_FIELDS) {
-    const value = source[field];
-    if (value === undefined || value === null || value === '') continue;
-    if (Array.isArray(value) && value.length === 0) continue;
-    manifest[field] = value;
   }
 
-  return manifest;
+  for (const field of OPTIONAL_FIELDS) {
+    const value = source[field]
+    if (value === undefined || value === null || value === '') continue
+    if (Array.isArray(value) && value.length === 0) continue
+    manifest[field] = value
+  }
+
+  return manifest
 }
 
 export async function writeStubDir(dir: string, manifest: StubManifest): Promise<void> {
-  await writeFile(
-    join(dir, 'package.json'),
-    JSON.stringify(manifest, null, 2) + '\n',
-    'utf8'
-  );
-  await writeFile(join(dir, 'index.js'), 'module.exports = {};\n', 'utf8');
+  await writeFile(join(dir, 'package.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf8')
+  await writeFile(join(dir, 'index.js'), 'module.exports = {};\n', 'utf8')
   await writeFile(
     join(dir, 'README.md'),
     `# ${manifest.name}\n\nThis is a stub package published by setup-trusted-publishing to enable OIDC trusted publishing configuration.\n`,
     'utf8'
-  );
+  )
 }
 
 export async function verifyStubDir(dir: string): Promise<void> {
-  const actual = (await readdir(dir)).sort();
-  const expected = [...EXPECTED_FILES].sort();
+  const actual = (await readdir(dir)).sort()
+  const expected = [...EXPECTED_FILES].sort()
 
   if (actual.join(',') !== expected.join(',')) {
-    const unexpected = actual.filter(f => !expected.includes(f));
-    const missing = expected.filter(f => !actual.includes(f));
-    const parts: string[] = [];
-    if (unexpected.length) parts.push(`unexpected: ${unexpected.join(', ')}`);
-    if (missing.length) parts.push(`missing: ${missing.join(', ')}`);
-    throw new Error(`Stub directory contents mismatch — ${parts.join('; ')}`);
+    const unexpected = actual.filter((f) => !expected.includes(f))
+    const missing = expected.filter((f) => !actual.includes(f))
+    const parts: string[] = []
+    if (unexpected.length) parts.push(`unexpected: ${unexpected.join(', ')}`)
+    if (missing.length) parts.push(`missing: ${missing.join(', ')}`)
+    throw new Error(`Stub directory contents mismatch — ${parts.join('; ')}`)
   }
 }

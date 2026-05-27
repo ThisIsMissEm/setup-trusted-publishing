@@ -1,15 +1,15 @@
-import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 export interface MockPM {
   /** Prepend this to PATH when running the CLI under test */
-  binDir: string;
+  binDir: string
   /** Returns all recorded invocation arg arrays, in order */
-  getCalls(): Promise<string[][]>;
+  getCalls(): Promise<string[][]>
   /** Set the exit code the next (and subsequent) invocations will return */
-  setExitCode(code: number): Promise<void>;
-  [Symbol.asyncDispose](): Promise<void>;
+  setExitCode(code: number): Promise<void>
+  [Symbol.asyncDispose](): Promise<void>
 }
 
 /**
@@ -26,9 +26,9 @@ export interface MockPM {
  *   });
  */
 export async function createMockPM(pm: 'npm' | 'pnpm' = 'npm'): Promise<MockPM> {
-  const dir = await mkdtemp(join(tmpdir(), 'mock-pm-'));
-  const callsFile = join(dir, 'calls.ndjson');
-  const exitCodeFile = join(dir, 'exit-code');
+  const dir = await mkdtemp(join(tmpdir(), 'mock-pm-'))
+  const callsFile = join(dir, 'calls.ndjson')
+  const exitCodeFile = join(dir, 'exit-code')
 
   // The mock script uses hardcoded absolute paths to avoid env var complexity.
   // Must use CJS require() — the script is written to a temp dir with no package.json
@@ -47,32 +47,32 @@ const exitCode = existsSync(${JSON.stringify(exitCodeFile)})
   : 0;
 
 process.exit(isNaN(exitCode) ? 0 : exitCode);
-`;
+`
 
-  await writeFile(join(dir, pm), scriptContent, { mode: 0o755 });
+  await writeFile(join(dir, pm), scriptContent, { mode: 0o755 })
 
   return {
     binDir: dir,
 
     async getCalls(): Promise<string[][]> {
       try {
-        const content = await readFile(callsFile, 'utf8');
+        const content = await readFile(callsFile, 'utf8')
         return content
           .trim()
           .split('\n')
           .filter(Boolean)
-          .map(line => JSON.parse(line) as string[]);
+          .map((line) => JSON.parse(line) as string[])
       } catch {
-        return [];
+        return []
       }
     },
 
     async setExitCode(code: number): Promise<void> {
-      await writeFile(exitCodeFile, String(code), 'utf8');
+      await writeFile(exitCodeFile, String(code), 'utf8')
     },
 
     async [Symbol.asyncDispose](): Promise<void> {
-      await rm(dir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true })
     },
-  };
+  }
 }

@@ -14,9 +14,13 @@
     "dist/src",
     "README.md"
   ],
+  "prettier": "@adonisjs/prettier-config",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "lint": "pnpm run typecheck && eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
     "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test",
     "version-packages": "changeset version && git add package.json CHANGELOG.md",
@@ -29,10 +33,14 @@
     "validate-npm-package-name": "*"
   },
   "devDependencies": {
+    "@adonisjs/eslint-config": "^3.0.0",
+    "@adonisjs/prettier-config": "^1.4.5",
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.0",
     "@types/node": "^24",
     "@types/validate-npm-package-name": "^4.0.2",
+    "eslint": "^10.4.0",
+    "prettier": "^3.8.3",
     "typescript": "^5"
   }
 }
