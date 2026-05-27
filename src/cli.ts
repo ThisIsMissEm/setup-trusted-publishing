@@ -250,14 +250,13 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
 
   // Step 15: Spawn publish
   const pm = pmDetection.pm!
-  const exitCode = await runPublish({
-    pm,
-    tarballPath,
-    cwd,
-    registry,
-    env,
-  })
-  if (exitCode !== 0) return exitCode
+  const result = await runPublish({ pm, tarballPath, cwd, registry, env })
+  if (result.exitCode !== 0) {
+    if (result.looksLikeAuthError) {
+      err('hint: 404 on publish usually means missing auth — set NPM_TOKEN or run `npm login` / `pnpm login`')
+    }
+    return result.exitCode
+  }
 
   // Step 16: Success output
   const effectiveRegistry = registry ?? env['NPM_CONFIG_REGISTRY'] ?? 'https://registry.npmjs.org/'

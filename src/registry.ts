@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { PassThrough } from 'node:stream'
 import { registryFetch, packPackage } from './npm.ts'
 // ── Package manager detection ─────────────────────────────────────────────
 
@@ -110,28 +111,48 @@ export interface RunPublishOptions {
   env?: NodeJS.ProcessEnv
 }
 
+export interface RunPublishResult {
+  exitCode: number
+  /** True when stderr contained both "E404" and "PUT" — likely an auth error. */
+  looksLikeAuthError: boolean
+}
+
 /**
  * Spawns `npm publish <tarball>` or `pnpm publish <tarball> --no-git-checks`.
- * Returns the process exit code.
+ * Pipes stderr through a Transform that watches for E404+PUT without buffering.
  */
-export async function runPublish(opts: RunPublishOptions): Promise<number> {
+export async function runPublish(opts: RunPublishOptions): Promise<RunPublishResult> {
   const { pm, tarballPath, cwd, registry, env } = opts
 
   const args = ['publish', tarballPath]
-  // pnpm always runs git checks, even though we're publishing a pre-built
-  // tarball:
+  // pnpm always runs git checks, even though we're publishing a pre-built tarball:
   if (pm === 'pnpm') args.push('--no-git-checks')
-
-  // Set the registry if one was supplied:
   if (registry) args.push(`--registry=${registry}`)
 
   return new Promise((resolve, reject) => {
+    let sawE404 = false
+    let sawPut = false
+
+    const stderrSpy = new PassThrough()
+    stderrSpy.on('data', (chunk: Buffer) => {
+      if (sawE404 && sawPut) return
+      const text = chunk.toString('utf8')
+      if (!sawE404 && text.includes('E404')) sawE404 = true
+      if (sawE404 && !sawPut && text.includes(' PUT ')) sawPut = true
+    })
+
     const child = spawn(pm, args, {
       cwd,
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'pipe'],
       env: env ?? process.env,
     })
-    child.on('exit', (code) => resolve(code ?? 1))
+
+    // stdio[2] === 'pipe' guarantees child.stderr is a Readable, not null
+    child.stderr!.pipe(stderrSpy).pipe(process.stderr)
+
+    child.on('exit', (code) =>
+      resolve({ exitCode: code ?? 1, looksLikeAuthError: sawE404 && sawPut })
+    )
     child.on('error', reject)
   })
 }

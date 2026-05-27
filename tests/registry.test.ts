@@ -110,14 +110,14 @@ describe('runPublish', () => {
     const tarball = join(tmpdir(), 'test-0.0.0.tgz')
     await writeFile(tarball, 'fake tarball content')
 
-    const code = await runPublish({
+    const result = await runPublish({
       pm: 'npm',
       tarballPath: tarball,
       cwd: tmpdir(),
       env: { ...process.env, PATH: `${pm.binDir}:${process.env['PATH']}` },
     })
 
-    assert.strictEqual(code, 0)
+    assert.strictEqual(result.exitCode, 0)
     const calls = await pm.getCalls()
     assert.ok(calls.length === 1)
     assert.strictEqual(calls[0]![0], 'publish')
@@ -163,13 +163,49 @@ describe('runPublish', () => {
     const tarball = join(tmpdir(), 'test-0.0.0.tgz')
     await writeFile(tarball, 'fake tarball content')
 
-    const code = await runPublish({
+    const result = await runPublish({
       pm: 'npm',
       tarballPath: tarball,
       cwd: tmpdir(),
       env: { ...process.env, PATH: `${pm.binDir}:${process.env['PATH']}` },
     })
 
-    assert.strictEqual(code, 1)
+    assert.strictEqual(result.exitCode, 1)
+    assert.strictEqual(result.looksLikeAuthError, false)
+  })
+
+  test('looksLikeAuthError is true when stderr contains E404 then PUT', async () => {
+    await using pm = await createMockPM('npm')
+    await pm.setExitCode(1)
+    await pm.setStderr('npm error code E404\nnpm error 404 Not Found - PUT https://registry.npmjs.org/my-pkg\n')
+    const tarball = join(tmpdir(), 'test-0.0.0.tgz')
+    await writeFile(tarball, 'fake tarball content')
+
+    const result = await runPublish({
+      pm: 'npm',
+      tarballPath: tarball,
+      cwd: tmpdir(),
+      env: { ...process.env, PATH: `${pm.binDir}:${process.env['PATH']}` },
+    })
+
+    assert.strictEqual(result.exitCode, 1)
+    assert.strictEqual(result.looksLikeAuthError, true)
+  })
+
+  test('looksLikeAuthError is false when stderr has PUT but no E404', async () => {
+    await using pm = await createMockPM('npm')
+    await pm.setExitCode(1)
+    await pm.setStderr('npm error 404 Not Found - PUT https://registry.npmjs.org/my-pkg\n')
+    const tarball = join(tmpdir(), 'test-0.0.0.tgz')
+    await writeFile(tarball, 'fake tarball content')
+
+    const result = await runPublish({
+      pm: 'npm',
+      tarballPath: tarball,
+      cwd: tmpdir(),
+      env: { ...process.env, PATH: `${pm.binDir}:${process.env['PATH']}` },
+    })
+
+    assert.strictEqual(result.looksLikeAuthError, false)
   })
 })

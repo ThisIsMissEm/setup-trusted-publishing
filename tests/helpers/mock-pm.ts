@@ -9,6 +9,8 @@ export interface MockPM {
   getCalls(): Promise<string[][]>
   /** Set the exit code the next (and subsequent) invocations will return */
   setExitCode(code: number): Promise<void>
+  /** Set text to write to stderr on the next (and subsequent) invocations */
+  setStderr(text: string): Promise<void>
   [Symbol.asyncDispose](): Promise<void>
 }
 
@@ -29,6 +31,7 @@ export async function createMockPM(pm: 'npm' | 'pnpm' = 'npm'): Promise<MockPM> 
   const dir = await mkdtemp(join(tmpdir(), 'mock-pm-'))
   const callsFile = join(dir, 'calls.ndjson')
   const exitCodeFile = join(dir, 'exit-code')
+  const stderrFile = join(dir, 'stderr')
 
   // The mock script uses hardcoded absolute paths to avoid env var complexity.
   // Must use CJS require() — the script is written to a temp dir with no package.json
@@ -41,6 +44,10 @@ appendFileSync(
   JSON.stringify(process.argv.slice(2)) + '\\n',
   'utf8'
 );
+
+if (existsSync(${JSON.stringify(stderrFile)})) {
+  process.stderr.write(readFileSync(${JSON.stringify(stderrFile)}, 'utf8'));
+}
 
 const exitCode = existsSync(${JSON.stringify(exitCodeFile)})
   ? parseInt(readFileSync(${JSON.stringify(exitCodeFile)}, 'utf8').trim(), 10)
@@ -69,6 +76,10 @@ process.exit(isNaN(exitCode) ? 0 : exitCode);
 
     async setExitCode(code: number): Promise<void> {
       await writeFile(exitCodeFile, String(code), 'utf8')
+    },
+
+    async setStderr(text: string): Promise<void> {
+      await writeFile(stderrFile, text, 'utf8')
     },
 
     async [Symbol.asyncDispose](): Promise<void> {
