@@ -15,7 +15,7 @@ importers:
         specifier: ^19.1.1
         version: 19.1.1
       validate-npm-package-name:
-        specifier: '*'
+        specifier: ^8.0.0
         version: 8.0.0
     devDependencies:
       '@adonisjs/eslint-config':

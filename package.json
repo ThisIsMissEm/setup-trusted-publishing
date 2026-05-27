@@ -4,7 +4,7 @@
   "description": "Publish a 0.0.0 stub to npm so OIDC trusted publishing can be configured",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.4.0"
   },
   "bin": {
     "setup-trusted-publishing": "./dist/bin/cli.js"
@@ -30,7 +30,7 @@
   "dependencies": {
     "libnpmpack": "^9.1.8",
     "npm-registry-fetch": "^19.1.1",
-    "validate-npm-package-name": "*"
+    "validate-npm-package-name": "^8.0.0"
   },
   "devDependencies": {
     "@adonisjs/eslint-config": "^3.0.0",
