@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.4.0+sha512.f0febc7e37552ab485494a914241b338e0b3580b93d54ce31f00933015880863129038a1b4ae4e414a0ee63ac35bf21197e990172c4a68256450b5636310968f",
   "engines": {
-    "node": ">=24.4.0"
+    "node": ">=24.15.0"
   },
   "bin": {
     "setup-trusted-publishing": "./dist/bin/cli.js"
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "libnpmpack": "^9.1.8",
-    "npm-registry-fetch": "^19.1.1",
+    "npm-registry-fetch": "^20",
     "validate-npm-package-name": "^8.0.0"
   },
   "devDependencies": {
