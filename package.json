@@ -10,6 +10,13 @@
   "bin": {
     "setup-trusted-publishing": "./dist/bin/cli.js"
   },
+  "repository": {
+    "url": "https://github.com/ThisIsMissEm/setup-trusted-publishing"
+  },
+  "homepage": "https://github.com/ThisIsMissEm/setup-trusted-publishing#readme",
+  "bugs": {
+    "url": "https://github.com/ThisIsMissEm/setup-trusted-publishing/issues"
+  },
   "license": "MIT",
   "files": [
     "dist/bin",
@@ -48,6 +55,7 @@
     "typescript": "^6"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   }
 }
