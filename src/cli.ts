@@ -181,7 +181,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
     env['npm_config_user_agent']
   )
 
-  if (pmDetection.pm === null) {
+  if (!noPublish && pmDetection.pm === null) {
     const ua = env['npm_config_user_agent']
     log(`Unsupported package manager: ${pmDetection.unsupported} ${ua && `(user-agent: ${ua})`}`)
   }
