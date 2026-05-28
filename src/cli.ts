@@ -178,9 +178,11 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
   )
 
   if (!noPublish && !dryRun && pmDetection.pm === null) {
+    const ua = env['npm_config_user_agent']
     err(
-      `Unsupported package manager: ${pmDetection.unsupported}. ` +
-        `Use --no-publish to prepare the stub tarball and publish it manually.`
+      `Unsupported package manager: ${pmDetection.unsupported}` +
+        (ua ? ` (user-agent: ${ua})` : '') +
+        `. Use --no-publish to prepare the stub tarball and publish it manually.`
     )
     return 1
   }
