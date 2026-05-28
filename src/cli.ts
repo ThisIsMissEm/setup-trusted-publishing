@@ -1,10 +1,11 @@
 import { parseArgs } from 'node:util'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import { mkdtempDisposable } from 'node:fs/promises'
 import validate from 'validate-npm-package-name'
-import { readPackage, writePackageAccess } from './packument.ts'
+import { readPackage, writePackageFields } from './packument.ts'
 import { resolveAccess, AccessConflictError } from './access.ts'
 import { buildStubManifest, writeStubDir, verifyStubDir } from './stub.ts'
 import { detectPackageManager, packageExists, packStub, runPublish } from './registry.ts'
@@ -31,6 +32,53 @@ export function formatSuccessUrl(name: string, effectiveRegistry: string): strin
     return `Published ${name}@0.0.0 → https://www.npmjs.com/package/${urlSafeName}`
   }
   return `Published ${name}@0.0.0 to ${effectiveRegistry}`
+}
+
+/** Exported for testing. */
+export function detectRepositoryUrl(cwd: string): string | null {
+  let remote: string
+  try {
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd, encoding: 'utf8' }).trim()
+  } catch {
+    return null
+  }
+
+  // SSH → HTTPS: git@github.com:user/repo.git → https://github.com/user/repo
+  remote = remote.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2')
+  // Strip git+https:// prefix
+  remote = remote.replace(/^git\+/, '')
+  // Strip trailing .git
+  remote = remote.replace(/\.git$/, '')
+
+  try {
+    const url = new URL(remote)
+    return `${url.protocol}//${url.host}${url.pathname}`
+  } catch {
+    return null
+  }
+}
+
+function logPostPublishHints(
+  log: (msg: string) => void,
+  pkg: import('./packument.ts').PackageJson,
+  detectedRepository: string | null
+): void {
+  log('')
+
+  const missingMeta = (['repository', 'homepage', 'bugs'] as const).filter((f) => {
+    if (f === 'repository' && detectedRepository) return false
+    return !pkg[f]
+  })
+  if (missingMeta.length > 0) {
+    log(
+      `hint: add ${missingMeta.map((f) => `"${f}"`).join(', ')} to package.json — ` +
+        `npm uses these for package discovery`
+    )
+  }
+
+  log(
+    `hint: the repository URL in package.json is case-sensitive for provenance and trusted publishing,\n      verify it exactly matches your GitHub (or other host) URL`
+  )
 }
 
 export default async function main(opts: MainOptions = {}): Promise<number> {
@@ -71,7 +119,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
       --no-publish     Write source package.json, pack the stub, copy tarball to
                        --cwd — but do not publish (for unsupported package managers)
       --access <mode>  'public' or 'restricted'
-  -f, --force          Bypass access conflict errors
+  -f, --force          Bypass access conflict errors and re-run even if package exists
       --registry <url> Registry to check and publish to
   -C, --cwd <path>     Source package directory (default: cwd)
   -h, --help`)
@@ -90,10 +138,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
     err('--dry-run and --no-publish cannot be used together')
     return 2
   }
-  if (dryRun && force) {
-    err('--dry-run and --force cannot be used together')
-    return 2
-  }
+
   if (flagAccess !== undefined && flagAccess !== 'public' && flagAccess !== 'restricted') {
     err(`Invalid --access value: "${flagAccess}". Must be "public" or "restricted".`)
     return 2
@@ -150,7 +195,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
     return 1
   }
 
-  if (exists) {
+  if (exists && !force) {
     log(`${name} is already published — nothing to do.`)
     return 0
   }
@@ -188,21 +233,41 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
     throw e
   }
 
-  // ── Step 7: Write publishConfig.access to source (unless dry-run) ──────
+  // ── Step 7: Write publishConfig updates + repository to source (unless dry-run) ──
 
-  if (accessResolution.changed && !dryRun) {
-    await writePackageAccess(cwd, pkgResult, accessResolution.value)
+  const needsProvenance = !pkgResult.parsed.publishConfig?.provenance
+
+  let detectedRepository: string | null = null
+  if (!pkgResult.parsed.repository) {
+    detectedRepository = detectRepositoryUrl(cwd)
+  }
+
+  if (!dryRun) {
+    const pkgUpdates: Parameters<typeof writePackageFields>[2] = {}
+    if (accessResolution.changed || needsProvenance) {
+      const publishConfigUpdates: Record<string, unknown> = {}
+      if (accessResolution.changed) publishConfigUpdates['access'] = accessResolution.value
+      if (needsProvenance) publishConfigUpdates['provenance'] = true
+      pkgUpdates.publishConfig = publishConfigUpdates
+    }
+    if (detectedRepository) pkgUpdates.repository = detectedRepository
+    if (Object.keys(pkgUpdates).length > 0) {
+      await writePackageFields(cwd, pkgResult, pkgUpdates)
+    }
   }
 
   // ── Step 8: Build stub manifest ─────────────────────────────────────────
 
-  // Use the updated access value so buildStubManifest sees the resolved publishConfig
-  const updatedPkg = accessResolution.changed
-    ? {
-        ...pkgResult.parsed,
-        publishConfig: { ...pkgResult.parsed.publishConfig, access: accessResolution.value },
-      }
-    : pkgResult.parsed
+  // Use the updated values so buildStubManifest sees the resolved publishConfig
+  const updatedPkg = {
+    ...pkgResult.parsed,
+    publishConfig: {
+      ...pkgResult.parsed.publishConfig,
+      ...(accessResolution.changed ? { access: accessResolution.value } : {}),
+      ...(needsProvenance ? { provenance: true } : {}),
+    },
+    ...(detectedRepository ? { repository: detectedRepository } : {}),
+  }
 
   const stubManifest = buildStubManifest(updatedPkg, accessResolution.value)
 
@@ -242,9 +307,10 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
   if (noPublish) {
     const dest = join(cwd, tarballName)
     await fs.copyFile(tarballPath, dest)
-    log(`Stub packed to ./${tarballName}`)
+    log(`Stub packed to ./${tarballName}\n`)
     log(`Run your publish command to complete the initial publish, e.g.:`)
     log(`  yarn npm publish ./${tarballName}`)
+    logPostPublishHints(log, pkgResult.parsed, detectedRepository)
     return 0
   }
 
@@ -263,6 +329,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
   // Step 16: Success output
   const effectiveRegistry = registry ?? env['NPM_CONFIG_REGISTRY'] ?? 'https://registry.npmjs.org/'
   log(formatSuccessUrl(name, effectiveRegistry))
+  logPostPublishHints(log, pkgResult.parsed, detectedRepository)
 
   return 0
   // Step 17: temp dir auto-cleans via await using

@@ -31,12 +31,15 @@ export function buildStubManifest(
     throw new Error('package.json is missing the required "name" field')
   }
 
+  // provenance is a publish-time flag that errors with tarball publishing — strip it from the stub
+  const { provenance, ...publishConfigBase } = { ...source.publishConfig }
+
   const manifest: StubManifest = {
     name: source.name,
     version: '0.0.0',
     main: 'index.js',
     description: source.description ?? 'Stub package for npm trusted publishing setup',
-    publishConfig: { ...source.publishConfig, access: resolvedAccess },
+    publishConfig: { ...publishConfigBase, access: resolvedAccess },
   }
 
   for (const field of OPTIONAL_FIELDS) {
