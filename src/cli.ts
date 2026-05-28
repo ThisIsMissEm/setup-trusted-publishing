@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util'
-import path, { join } from 'node:path'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
@@ -322,7 +322,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
       log(`Detected package manager: ${pmDetection.pm} (${source})\n`)
     }
     const prefix = cwd === process.cwd() ? './' : cwd
-    const realTarballPath = path.join(prefix, tarballName)
+    const realTarballPath = join(prefix, tarballName)
     log(`Stub packed to into: ${realTarballPath}\n`)
     log(`Run your publish command to complete the initial publish, e.g.,\n`)
     log(`  yarn npm publish ${realTarballPath}`)
