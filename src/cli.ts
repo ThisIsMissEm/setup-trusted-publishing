@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
-import { mkdtempDisposable } from 'node:fs/promises'
 import validate from 'validate-npm-package-name'
 import { readPackage, writePackageFields } from './packument.ts'
 import { resolveAccess, AccessConflictError } from './access.ts'
@@ -79,6 +78,17 @@ function logPostPublishHints(
   log(
     `hint: the repository URL in package.json is case-sensitive for provenance and trusted publishing,\n      verify it exactly matches your GitHub (or other host) URL`
   )
+}
+
+// mkdtempDisposable was added in Node.js v24 and is absent from Bun — roll our own.
+async function makeTempDir(prefix: string): Promise<{ path: string } & AsyncDisposable> {
+  const tmpPath = await fs.mkdtemp(prefix)
+  return {
+    path: tmpPath,
+    async [Symbol.asyncDispose]() {
+      await fs.rm(tmpPath, { recursive: true, force: true })
+    },
+  }
 }
 
 export default async function main(opts: MainOptions = {}): Promise<number> {
@@ -285,8 +295,7 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
 
   const tarballName = `${name.replace(/^@/, '').replace(/\//g, '-')}-0.0.0.tgz`
 
-  // mkdtempDisposable returns { path, remove, [Symbol.asyncDispose] }
-  await using tempDir = await mkdtempDisposable(join(tmpdir(), 'setup-tp-'))
+  await using tempDir = await makeTempDir(join(tmpdir(), 'setup-tp-'))
   const tempPath: string = tempDir.path
 
   // Step 11: Write stub files
