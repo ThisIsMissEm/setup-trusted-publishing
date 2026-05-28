@@ -1,5 +1,23 @@
 # setup-trusted-publishing
 
+## 1.0.1
+
+### Patch Changes
+
+- [#17](https://github.com/ThisIsMissEm/setup-trusted-publishing/pull/17) [`41cc05e`](https://github.com/ThisIsMissEm/setup-trusted-publishing/commit/41cc05e91dd51005b5da0b100b55227919a58294) Thanks [@ThisIsMissEm](https://github.com/ThisIsMissEm)! - Use the correct path in the `--no-publish` stub tarball message when `--cwd` is specified.
+
+  Previously the message always showed `./package-0.0.0.tgz`. Now it shows the path relative to the working directory so the path in the example publish command is accurate when `--cwd` is used.
+
+- [#17](https://github.com/ThisIsMissEm/setup-trusted-publishing/pull/17) [`41cc05e`](https://github.com/ThisIsMissEm/setup-trusted-publishing/commit/41cc05e91dd51005b5da0b100b55227919a58294) Thanks [@ThisIsMissEm](https://github.com/ThisIsMissEm)! - Show detected package manager and source in `--no-publish` output.
+
+  When a supported package manager is detected, the tool now prints `Detected package manager: <pm> (<source>)` before the stub-packed message, making it easier to verify which package manager was detected and why.
+
+- [#16](https://github.com/ThisIsMissEm/setup-trusted-publishing/pull/16) [`30e81e9`](https://github.com/ThisIsMissEm/setup-trusted-publishing/commit/30e81e9c632dd03de0c1b4fe5cdf870a8c16bab2) Thanks [@ThisIsMissEm](https://github.com/ThisIsMissEm)! - Update README.md with more information
+
+- [#14](https://github.com/ThisIsMissEm/setup-trusted-publishing/pull/14) [`ef0a28e`](https://github.com/ThisIsMissEm/setup-trusted-publishing/commit/ef0a28e5c12a3fd93fd78ddc693f7a64dc3c1e08) Thanks [@ThisIsMissEm](https://github.com/ThisIsMissEm)! - Include the raw `npm_config_user_agent` value in the unsupported package manager error message.
+
+  This makes it easier to identify the exact user agent string when reporting support for a new package manager.
+
 ## 1.0.0
 
 ### Major Changes
