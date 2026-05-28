@@ -1,5 +1,11 @@
 # setup-trusted-publishing
 
+## 1.0.2
+
+### Patch Changes
+
+- [#18](https://github.com/ThisIsMissEm/setup-trusted-publishing/pull/18) [`6733e21`](https://github.com/ThisIsMissEm/setup-trusted-publishing/commit/6733e21e90e19b22186481b6778383daab575dde) Thanks [@ThisIsMissEm](https://github.com/ThisIsMissEm)! - Fix compatibility with Bun: `mkdtempDisposable` was added in Node.js v24 and is not yet available in Bun. Replaced with an inline implementation using `mkdtemp` + `rm`.
+
 ## 1.0.1
 
 ### Patch Changes
