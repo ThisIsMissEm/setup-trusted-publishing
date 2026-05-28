@@ -272,7 +272,7 @@ test('packageManager yarn@4 → exit 1 with unsupported message', async () => {
   })
   try {
     assert.strictEqual(ctx.code, 1)
-    assert.ok(ctx.err.some((l) => l.toLowerCase().includes('unsupported')))
+    assert.ok(ctx.out.some((l) => l.toLowerCase().includes('unsupported')))
     assert.ok(ctx.err.some((l) => l.includes('--no-publish')))
   } finally {
     await cleanup(ctx)

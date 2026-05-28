@@ -38,7 +38,11 @@ export function formatSuccessUrl(name: string, effectiveRegistry: string): strin
 export function detectRepositoryUrl(cwd: string): string | null {
   let remote: string
   try {
-    remote = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd, encoding: 'utf8' }).trim()
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore'],
+    }).trim()
   } catch {
     return null
   }
@@ -177,13 +181,13 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
     env['npm_config_user_agent']
   )
 
-  if (!noPublish && !dryRun && pmDetection.pm === null) {
+  if (!noPublish && pmDetection.pm === null) {
     const ua = env['npm_config_user_agent']
-    err(
-      `Unsupported package manager: ${pmDetection.unsupported}` +
-        (ua ? ` (user-agent: ${ua})` : '') +
-        `. Use --no-publish to prepare the stub tarball and publish it manually.`
-    )
+    log(`Unsupported package manager: ${pmDetection.unsupported} ${ua && `(user-agent: ${ua})`}`)
+  }
+
+  if (!noPublish && !dryRun && pmDetection.pm === null) {
+    err(`Use --no-publish to prepare the stub tarball and publish it manually.`)
     return 1
   }
 
@@ -309,9 +313,19 @@ export default async function main(opts: MainOptions = {}): Promise<number> {
   if (noPublish) {
     const dest = join(cwd, tarballName)
     await fs.copyFile(tarballPath, dest)
-    log(`Stub packed to ./${tarballName}\n`)
-    log(`Run your publish command to complete the initial publish, e.g.:`)
-    log(`  yarn npm publish ./${tarballName}`)
+    if (pmDetection.pm !== null) {
+      const ua = env['npm_config_user_agent']
+      const source =
+        pmDetection.source === 'user-agent' && ua
+          ? `user-agent: ${ua}`
+          : pmDetection.source.replace(/-/g, ' ')
+      log(`Detected package manager: ${pmDetection.pm} (${source})\n`)
+    }
+    const prefix = cwd === process.cwd() ? './' : cwd
+    const realTarballPath = join(prefix, tarballName)
+    log(`Stub packed to into: ${realTarballPath}\n`)
+    log(`Run your publish command to complete the initial publish, e.g.,\n`)
+    log(`  yarn npm publish ${realTarballPath}`)
     logPostPublishHints(log, pkgResult.parsed, detectedRepository)
     return 0
   }
