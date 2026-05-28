@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { readPackage, writePackageAccess } from '../src/packument.ts'
+import { readPackage, writePackageFields } from '../src/packument.ts'
 
 describe('readPackage', () => {
   let dir: string
@@ -47,7 +47,7 @@ describe('readPackage', () => {
   })
 })
 
-describe('writePackageAccess', () => {
+describe('writePackageFields', () => {
   let dir: string
   before(async () => {
     dir = await mkdtemp(join(tmpdir(), 'test-pkg-'))
@@ -60,19 +60,18 @@ describe('writePackageAccess', () => {
     const original = '{\n  "name": "foo",\n  "version": "1.0.0"\n}\n'
     await writeFile(join(dir, 'package.json'), original)
     const r = await readPackage(dir)
-    await writePackageAccess(dir, r, 'public')
+    await writePackageFields(dir, r, { publishConfig: { access: 'public' } })
     const written = await readFile(join(dir, 'package.json'), 'utf8')
     const parsed = JSON.parse(written) as Record<string, unknown>
     assert.deepStrictEqual((parsed['publishConfig'] as Record<string, unknown>)['access'], 'public')
     assert.ok(written.endsWith('\n'), 'trailing newline preserved')
-    // Check indent — the publishConfig key should be indented by 2 spaces
     assert.ok(written.includes('\n  "publishConfig"'), '2-space indent preserved')
   })
 
   test('preserves tab indent', async () => {
     await writeFile(join(dir, 'package.json'), '{\n\t"name": "bar"\n}\n')
     const r = await readPackage(dir)
-    await writePackageAccess(dir, r, 'restricted')
+    await writePackageFields(dir, r, { publishConfig: { access: 'restricted' } })
     const written = await readFile(join(dir, 'package.json'), 'utf8')
     assert.ok(written.includes('\n\t"publishConfig"'), 'tab indent preserved')
   })
@@ -80,7 +79,7 @@ describe('writePackageAccess', () => {
   test('preserves absence of trailing newline', async () => {
     await writeFile(join(dir, 'package.json'), '{\n  "name": "baz"\n}')
     const r = await readPackage(dir)
-    await writePackageAccess(dir, r, 'public')
+    await writePackageFields(dir, r, { publishConfig: { access: 'public' } })
     const written = await readFile(join(dir, 'package.json'), 'utf8')
     assert.ok(!written.endsWith('\n'), 'no trailing newline preserved')
   })
@@ -90,7 +89,7 @@ describe('writePackageAccess', () => {
       '{\n  "name": "foo",\n  "publishConfig": {\n    "registry": "https://example.com"\n  }\n}\n'
     await writeFile(join(dir, 'package.json'), original)
     const r = await readPackage(dir)
-    await writePackageAccess(dir, r, 'restricted')
+    await writePackageFields(dir, r, { publishConfig: { access: 'restricted' } })
     const written = await readFile(join(dir, 'package.json'), 'utf8')
     const parsed = JSON.parse(written) as { publishConfig: Record<string, unknown> }
     assert.strictEqual(parsed.publishConfig['access'], 'restricted')
@@ -101,9 +100,30 @@ describe('writePackageAccess', () => {
     const original = '{\n  "name": "foo",\n  "publishConfig": { "access": "public" }\n}\n'
     await writeFile(join(dir, 'package.json'), original)
     const r = await readPackage(dir)
-    await writePackageAccess(dir, r, 'restricted')
+    await writePackageFields(dir, r, { publishConfig: { access: 'restricted' } })
     const written = await readFile(join(dir, 'package.json'), 'utf8')
     const parsed = JSON.parse(written) as { publishConfig: Record<string, unknown> }
     assert.strictEqual(parsed.publishConfig['access'], 'restricted')
+  })
+
+  test('writes repository field', async () => {
+    const original = '{\n  "name": "foo"\n}\n'
+    await writeFile(join(dir, 'package.json'), original)
+    const r = await readPackage(dir)
+    await writePackageFields(dir, r, { repository: 'https://github.com/owner/repo' })
+    const written = await readFile(join(dir, 'package.json'), 'utf8')
+    const parsed = JSON.parse(written) as Record<string, unknown>
+    assert.strictEqual(parsed['repository'], 'https://github.com/owner/repo')
+  })
+
+  test('writes publishConfig.provenance and access together', async () => {
+    const original = '{\n  "name": "foo"\n}\n'
+    await writeFile(join(dir, 'package.json'), original)
+    const r = await readPackage(dir)
+    await writePackageFields(dir, r, { publishConfig: { access: 'public', provenance: true } })
+    const written = await readFile(join(dir, 'package.json'), 'utf8')
+    const parsed = JSON.parse(written) as { publishConfig: Record<string, unknown> }
+    assert.strictEqual(parsed.publishConfig['access'], 'public')
+    assert.strictEqual(parsed.publishConfig['provenance'], true)
   })
 })

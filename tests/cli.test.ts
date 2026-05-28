@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createMockRegistry } from './helpers/mock_registry.ts'
 import { createMockPM } from './helpers/mock_pm.ts'
-import main, { formatSuccessUrl } from '../src/cli.ts'
+import main, { formatSuccessUrl, detectRepositoryUrl } from '../src/cli.ts'
 
 // Helper: run the CLI with full isolation
 async function runCLI(opts: {
@@ -158,10 +158,16 @@ test('--dry-run + --no-publish together → exit 2', async () => {
   }
 })
 
-test('--force + --dry-run together → exit 2', async () => {
-  const ctx = await runCLI({ argv: ['--force', '--dry-run'] })
+test('--force bypasses already-published exit', async () => {
+  const ctx = await runCLI({
+    pkgJson: { name: 'test-pkg', version: '1.0.0' },
+    knownPackages: ['test-pkg'],
+    argv: ['--force'],
+  })
   try {
-    assert.strictEqual(ctx.code, 2)
+    assert.ok(!ctx.out.some((l) => l.includes('nothing to do')))
+    const calls = await ctx.pm.getCalls()
+    assert.ok(calls.length > 0, 'publish should have been called')
   } finally {
     await cleanup(ctx)
   }
@@ -406,5 +412,52 @@ describe('formatSuccessUrl', () => {
     const url = formatSuccessUrl('my-pkg', 'https://my-registry.example.com/')
     assert.ok(url.includes('my-registry.example.com'))
     assert.ok(!url.includes('npmjs.com'))
+  })
+})
+
+// ── detectRepositoryUrl unit tests ────────────────────────────────────────
+
+describe('detectRepositoryUrl', () => {
+  let dir: string
+
+  test('returns null when not in a git repo', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'no-git-'))
+    const url = detectRepositoryUrl(dir)
+    assert.strictEqual(url, null)
+    await rm(dir, { recursive: true })
+  })
+
+  test('normalises HTTPS remote — strips .git suffix', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'test-git-'))
+    const { execFileSync } = await import('node:child_process')
+    execFileSync('git', ['init'], { cwd: dir })
+    execFileSync('git', ['remote', 'add', 'origin', 'https://github.com/owner/repo.git'], {
+      cwd: dir,
+    })
+    const url = detectRepositoryUrl(dir)
+    assert.strictEqual(url, 'https://github.com/owner/repo')
+    await rm(dir, { recursive: true })
+  })
+
+  test('normalises SSH remote to HTTPS', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'test-git-'))
+    const { execFileSync } = await import('node:child_process')
+    execFileSync('git', ['init'], { cwd: dir })
+    execFileSync('git', ['remote', 'add', 'origin', 'git@github.com:owner/repo.git'], { cwd: dir })
+    const url = detectRepositoryUrl(dir)
+    assert.strictEqual(url, 'https://github.com/owner/repo')
+    await rm(dir, { recursive: true })
+  })
+
+  test('strips git+https:// prefix', async () => {
+    dir = await mkdtemp(join(tmpdir(), 'test-git-'))
+    const { execFileSync } = await import('node:child_process')
+    execFileSync('git', ['init'], { cwd: dir })
+    execFileSync('git', ['remote', 'add', 'origin', 'git+https://github.com/owner/repo.git'], {
+      cwd: dir,
+    })
+    const url = detectRepositoryUrl(dir)
+    assert.strictEqual(url, 'https://github.com/owner/repo')
+    await rm(dir, { recursive: true })
   })
 })
