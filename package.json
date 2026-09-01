@@ -36,7 +36,7 @@
     "changeset": "changeset"
   },
   "dependencies": {
-    "libnpmpack": "^9.1.8",
+    "libnpmpack": "^10.0.2",
     "npm-registry-fetch": "^20",
     "validate-npm-package-name": "^8.0.0"
   },
