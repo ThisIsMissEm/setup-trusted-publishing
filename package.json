@@ -45,7 +45,7 @@
     "@adonisjs/prettier-config": "^1.4.5",
     "@adonisjs/tsconfig": "^2.0.0",
     "@changesets/changelog-github": "^0.7.0",
-    "@changesets/cli": "^2.31.0",
+    "@changesets/cli": "^3.0.1",
     "@types/node": "^25.9.1",
     "@types/validate-npm-package-name": "^4.0.2",
     "eslint": "^10.4.0",
