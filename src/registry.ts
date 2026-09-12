@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { platform } from 'node:process'
 import { PassThrough } from 'node:stream'
 import { registryFetch, packPackage } from './npm.ts'
 // ── Package manager detection ─────────────────────────────────────────────
@@ -141,7 +142,7 @@ export async function runPublish(opts: RunPublishOptions): Promise<RunPublishRes
       if (sawE404 && !sawPut && text.includes(' PUT ')) sawPut = true
     })
 
-    const child = spawn(pm, args, {
+    const child = spawn(platform === 'win32' ? `${pm}.cmd` : pm, args, {
       cwd,
       stdio: ['inherit', 'inherit', 'pipe'],
       env: env ?? process.env,
