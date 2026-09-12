@@ -146,6 +146,7 @@ export async function runPublish(opts: RunPublishOptions): Promise<RunPublishRes
       cwd,
       stdio: ['inherit', 'inherit', 'pipe'],
       env: env ?? process.env,
+      shell: platform === 'win32',
     })
 
     // stdio[2] === 'pipe' guarantees child.stderr is a Readable, not null
