@@ -1,4 +1,6 @@
+import type { SpawnOptionsWithStdioTuple } from 'node:child_process'
 import { spawn } from 'node:child_process'
+import { platform } from 'node:process'
 import { PassThrough } from 'node:stream'
 import { registryFetch, packPackage } from './npm.ts'
 // ── Package manager detection ─────────────────────────────────────────────
@@ -117,6 +119,20 @@ export interface RunPublishResult {
   looksLikeAuthError: boolean
 }
 
+// Windows: pnpm/npm are .cmd/.exe shims, so they need a shell (Node >= 20.12).
+// Build a single command string (avoids DEP0190) and quote each argument for cmd.exe.
+function quoteForCmd(arg: string): string {
+  // Inside double quotes cmd.exe treats most metacharacters literally,
+  // except `"` and `%` (variable expansion), which we refuse outright.
+  if (/["%\r\n]/.test(arg)) throw new Error(`Unsafe argument for cmd.exe: ${arg}`)
+  return /^[\w@/.:=+-]+$/.test(arg) ? arg : `"${arg}"`
+}
+
+// exported for testing
+export function toCmdString(pm: string, args: string[]): string {
+  return [pm, ...args].map(quoteForCmd).join(' ')
+}
+
 /**
  * Spawns `npm publish <tarball>` or `pnpm publish <tarball> --no-git-checks`.
  * Pipes stderr through a Transform that watches for E404+PUT without buffering.
@@ -141,11 +157,17 @@ export async function runPublish(opts: RunPublishOptions): Promise<RunPublishRes
       if (sawE404 && !sawPut && text.includes(' PUT ')) sawPut = true
     })
 
-    const child = spawn(pm, args, {
+    const spawnOptions: SpawnOptionsWithStdioTuple<'inherit', 'inherit', 'pipe'> = {
       cwd,
       stdio: ['inherit', 'inherit', 'pipe'],
       env: env ?? process.env,
-    })
+      shell: platform === 'win32',
+    }
+
+    const child =
+      platform === 'win32'
+        ? spawn(toCmdString(pm, args), spawnOptions)
+        : spawn(pm, args, spawnOptions)
 
     // stdio[2] === 'pipe' guarantees child.stderr is a Readable, not null
     child.stderr!.pipe(stderrSpy).pipe(process.stderr)

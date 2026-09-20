@@ -29,7 +29,7 @@
     "lint": "pnpm run typecheck && eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts",
+    "test": "node --experimental-strip-types --experimental-test-isolation=process --test tests/access.test.ts tests/packument.test.ts tests/stub.test.ts tests/registry.test.ts tests/cli.test.ts tests/cmdstring.test.ts",
     "test:file": "node --experimental-strip-types --experimental-test-isolation=process --test",
     "version-packages": "changeset version && pnpm run format CHANGELOG.md && git add package.json CHANGELOG.md",
     "release": "pnpm run build && npm stage publish",
